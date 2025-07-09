@@ -23,6 +23,7 @@ public class PlayerController : MonoBehaviour
     public float dashForce = 20f;
     public float dashDuration = 0.2f;
     public float dashCooldown = 1f;
+    private bool hasAirDashed = false;
 
     [Header("Raycast Checks")]
     public Vector2 groundCheckOffset = new Vector2(0f, -0.5f);
@@ -58,132 +59,156 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
-        horizontalInput = Input.GetAxisRaw("Horizontal");
-
-        if (horizontalInput != 0)
-            facingDirection = (int)Mathf.Sign(horizontalInput);
-
+        HandleInput();
         CheckCollisions();
-
-        // Coyote Time
-        if (isGrounded) coyoteTimer = coyoteTime;
-        else coyoteTimer -= Time.deltaTime;
-
-        // Jump Buffer
-        if (Input.GetButtonDown("Jump")) jumpBufferTimer = jumpBufferTime;
-        else jumpBufferTimer -= Time.deltaTime;
-
-        // Jump Conditions
-        if (jumpBufferTimer > 0 && (coyoteTimer > 0 || isWallSliding))
-        {
-            jumpPressed = true;
-            jumpBufferTimer = 0;
-        }
-
-        // Variable jump height
-        if (Input.GetButtonUp("Jump") && rb.velocity.y > 0)
-        {
-            rb.velocity = new Vector2(rb.velocity.x, rb.velocity.y * 0.5f);
-        }
-
-        // Wall Slide Control
-        if (!isWallSliding && isTouchingWall && !isGrounded && rb.velocity.y < 0 &&
-            Mathf.Sign(horizontalInput) == wallDirection && Mathf.Abs(horizontalInput) > 0.1f && !isWallJumping)
-        {
-            isWallSliding = true;
-        }
-        else if (isGrounded || !isTouchingWall || isWallJumping)
-        {
-            isWallSliding = false;
-        }
-
-        // Wall Jump timer
-        if (isWallJumping)
-        {
-            wallJumpTimer -= Time.deltaTime;
-            if (wallJumpTimer <= 0)
-                isWallJumping = false;
-        }
-
-        // Dash Input
-        if (Input.GetKeyDown(KeyCode.Mouse1) && canDash && !isDashing)
-        {
-            StartDash();
-        }
-
-        // Dash Timing
-        if (isDashing)
-        {
-            dashTimer -= Time.deltaTime;
-            if (dashTimer <= 0)
-            {
-                EndDash();
-            }
-        }
-
-        // Dash Cooldown
-        if (!canDash)
-        {
-            dashCooldownTimer -= Time.deltaTime;
-            if (dashCooldownTimer <= 0)
-            {
-                canDash = true;
-            }
-        }
+        HandleJumpBufferAndCoyoteTime();
+        HandleWallSlide();
+        HandleDashInput();
+        HandleDashCooldown();
     }
 
     void FixedUpdate()
     {
         if (isDashing) return;
 
-        // Horizontal movement
-        if (!isWallJumping)
+        HandleMovement();
+        HandleWallSlideMovement();
+        HandleJump();
+        ApplyGravity();
+    }
+
+    void HandleInput()
+    {
+        horizontalInput = Input.GetAxisRaw("Horizontal");
+
+        if (horizontalInput != 0)
+            facingDirection = (int)Mathf.Sign(horizontalInput);
+
+        if (Input.GetButtonDown("Jump"))
+            jumpBufferTimer = jumpBufferTime;
+
+        if (Input.GetButtonUp("Jump") && rb.velocity.y > 0)
+            rb.velocity = new Vector2(rb.velocity.x, rb.velocity.y * 0.5f);
+    }
+
+    void HandleJumpBufferAndCoyoteTime()
+    {
+        coyoteTimer = isGrounded ? coyoteTime : coyoteTimer - Time.deltaTime;
+        jumpBufferTimer -= Time.deltaTime;
+
+        if (jumpBufferTimer > 0 && (coyoteTimer > 0 || isWallSliding))
         {
-            float targetSpeed = horizontalInput * moveSpeed;
-            float speedDiff = targetSpeed - rb.velocity.x;
-            float accelRate = acceleration;
-            rb.velocity = new Vector2(rb.velocity.x + speedDiff * accelRate * Time.fixedDeltaTime, rb.velocity.y);
+            jumpPressed = true;
+            jumpBufferTimer = 0;
         }
 
-        // Wall Slide
+        if (isWallJumping)
+        {
+            wallJumpTimer -= Time.deltaTime;
+            if (wallJumpTimer <= 0)
+                isWallJumping = false;
+        }
+    }
+
+    void HandleWallSlide()
+    {
+        bool slidingConditions = isTouchingWall && !isGrounded && rb.velocity.y < 0 &&
+                                 Mathf.Sign(horizontalInput) == wallDirection &&
+                                 Mathf.Abs(horizontalInput) > 0.1f && !isWallJumping;
+
+        if (slidingConditions)
+            isWallSliding = true;
+
+        if (isTouchingWall && !isGrounded)
+            hasAirDashed = false;
+
+        if (isGrounded || !isTouchingWall || isWallJumping)
+            isWallSliding = false;
+    }
+
+    void HandleDashInput()
+    {
+        if (Input.GetKeyDown(KeyCode.Mouse1) && !isDashing)
+        {
+            if (isGrounded && canDash)
+            {
+                StartDash();
+                canDash = false;
+                dashCooldownTimer = dashCooldown;
+            }
+            else if (!isGrounded && !hasAirDashed)
+            {
+                StartDash();
+                hasAirDashed = true;
+            }
+        }
+
+        if (isDashing)
+        {
+            dashTimer -= Time.deltaTime;
+            if (dashTimer <= 0)
+                EndDash();
+        }
+    }
+
+    void HandleDashCooldown()
+    {
+        if (isGrounded)
+        {
+            if (!canDash)
+            {
+                dashCooldownTimer -= Time.deltaTime;
+                if (dashCooldownTimer <= 0)
+                    canDash = true;
+            }
+
+            hasAirDashed = false;
+        }
+    }
+
+    void HandleMovement()
+    {
+        if (isWallJumping) return;
+
+        float targetSpeed = horizontalInput * moveSpeed;
+        float speedDiff = targetSpeed - rb.velocity.x;
+        rb.velocity = new Vector2(rb.velocity.x + speedDiff * acceleration * Time.fixedDeltaTime, rb.velocity.y);
+    }
+
+    void HandleWallSlideMovement()
+    {
+        if (isWallSliding)
+            rb.velocity = new Vector2(rb.velocity.x, -wallSlideSpeed);
+    }
+
+    void HandleJump()
+    {
+        if (!jumpPressed) return;
+
         if (isWallSliding)
         {
-            rb.velocity = new Vector2(rb.velocity.x, -wallSlideSpeed);
-        }
+            isWallJumping = true;
+            wallJumpTimer = wallJumpTime;
 
-        // Jump
-        if (jumpPressed)
+            Vector2 jumpDir = (Mathf.Sign(horizontalInput) == wallDirection && Mathf.Abs(horizontalInput) > 0.1f)
+                ? new Vector2(-wallDirection * 0.3f, 1f)
+                : new Vector2(-wallDirection, 1f);
+
+            jumpDir.Normalize();
+            rb.velocity = new Vector2(jumpDir.x * wallJumpForce.x, wallJumpForce.y);
+            hasAirDashed = false;
+        }
+        else
         {
-            if (isWallSliding)
-            {
-                isWallJumping = true;
-                wallJumpTimer = wallJumpTime;
-
-                Vector2 jumpDir;
-
-                // Hollow Knight-style: softer jump off if holding toward the wall
-                if (Mathf.Sign(horizontalInput) == wallDirection && Mathf.Abs(horizontalInput) > 0.1f)
-                {
-                    jumpDir = new Vector2(-wallDirection * 0.3f, 1f); // softer outward force
-                }
-                else
-                {
-                    jumpDir = new Vector2(-wallDirection, 1f); // strong push away
-                }
-
-                jumpDir.Normalize();
-                rb.velocity = new Vector2(jumpDir.x * wallJumpForce.x, wallJumpForce.y);
-            }
-            else
-            {
-                rb.velocity = new Vector2(rb.velocity.x, jumpForce);
-            }
-
-            jumpPressed = false;
-            coyoteTimer = 0;
+            rb.velocity = new Vector2(rb.velocity.x, jumpForce);
         }
 
-        // Fall multiplier
+        jumpPressed = false;
+        coyoteTimer = 0;
+    }
+
+    void ApplyGravity()
+    {
         if (rb.velocity.y < 0 && !isWallSliding)
             rb.gravityScale = gravityScale * fallMultiplier;
         else
@@ -205,12 +230,10 @@ public class PlayerController : MonoBehaviour
     {
         isDashing = true;
         dashTimer = dashDuration;
-        canDash = false;
-        dashCooldownTimer = dashCooldown;
+        rb.gravityScale = 0;
 
         float dashDir = horizontalInput != 0 ? horizontalInput : facingDirection;
         rb.velocity = new Vector2(dashDir * dashForce, 0f);
-        rb.gravityScale = 0;
     }
 
     void EndDash()
@@ -221,12 +244,10 @@ public class PlayerController : MonoBehaviour
 
     void OnDrawGizmosSelected()
     {
-        // Ground check
         Gizmos.color = Color.green;
         Gizmos.DrawLine(transform.position + (Vector3)groundCheckOffset,
                         transform.position + (Vector3)groundCheckOffset + Vector3.down * groundCheckDistance);
 
-        // Wall check
         Gizmos.color = Color.blue;
         Gizmos.DrawLine(transform.position, transform.position + Vector3.left * wallCheckDistance);
         Gizmos.DrawLine(transform.position, transform.position + Vector3.right * wallCheckDistance);
