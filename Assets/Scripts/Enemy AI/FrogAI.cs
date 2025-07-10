@@ -157,6 +157,7 @@ public class FrogAI : EnemyAIBase
         if (damageTimer > 0f) return;
 
         PlayerHealth playerHealth = collision.gameObject.GetComponent<PlayerHealth>();
+        
         if (playerHealth != null)
         {
             playerHealth.TakeDamage(contactDamage);
