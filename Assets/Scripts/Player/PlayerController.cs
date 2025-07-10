@@ -31,6 +31,10 @@ public class PlayerController : MonoBehaviour
     public float wallCheckDistance = 0.6f;
     public LayerMask groundLayer;
 
+    [Header("Knockback")]
+    public float force = 5;
+    public ForceMode2D forceMode = ForceMode2D.Impulse;
+
     private Rigidbody2D rb;
     private float horizontalInput;
     private int facingDirection = 1;
@@ -242,6 +246,23 @@ public class PlayerController : MonoBehaviour
         rb.gravityScale = gravityScale;
     }
 
+    private void OnCollisionEnter2D(Collision2D collision)
+    {
+        if (collision.gameObject.CompareTag("Enemy"))
+        {
+            // Calculate the direction to push the player
+            ContactPoint2D contactPoint = collision.GetContact(0);
+            Vector2 playerPosition = transform.position;
+            Vector2 dir = contactPoint.point - playerPosition;
+            dir = -dir.normalized;
+
+            rb.velocity = new Vector2(0, 0);
+            rb.inertia = 0;
+
+            // Apply the knockback force
+            rb.AddForce(dir * force, forceMode);
+        }
+    }
     void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.green;

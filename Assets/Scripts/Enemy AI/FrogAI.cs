@@ -17,7 +17,6 @@ public class FrogAI : EnemyAIBase
     [Header("Wall Adjustment")]
     public float wallCheckDistance = 0.5f;
     public float wallAdjustmentTime = 0.5f;
-    public float adjustMoveSpeed = 2f;
     private float adjustTimer = 0f;
     private bool isAdjusting = false;
 
@@ -33,6 +32,11 @@ public class FrogAI : EnemyAIBase
     private bool isRoaming = false;
     private int roamDirection = 1;
 
+    [Header("Damage Settings")]
+    public int contactDamage = 1;
+    public float damageCooldown = 1.0f;
+    private float damageTimer;
+
     // Debug trajectory
     private Vector2 debugInitialVelocity;
     private float debugFlightTime;
@@ -42,21 +46,29 @@ public class FrogAI : EnemyAIBase
     {
         leapTimer -= Time.fixedDeltaTime;
         roamHopTimer -= Time.fixedDeltaTime;
+        damageTimer -= Time.fixedDeltaTime;
         isGrounded = Physics2D.OverlapCircle(groundCheck.position, groundCheckRadius, groundLayer);
 
-        // Wall avoidance
+        // Wall avoidance as hop
         if (IsAgainstWall() && isGrounded && !isAdjusting)
         {
             isAdjusting = true;
             adjustTimer = wallAdjustmentTime;
+
+            // Perform a hop away from the wall
+            float hopDir = isFacingRight ? -1f : 1f;
+            Vector2 hopVelocity = new Vector2(hopDir * roamHopForceX, roamHopForceY);
+            rb.velocity = hopVelocity;
+
+            // Debug visuals
+            debugInitialVelocity = hopVelocity;
+            debugFlightTime = 0.6f;
+            debugHasTrajectory = true;
         }
 
         if (isAdjusting)
         {
             adjustTimer -= Time.fixedDeltaTime;
-            float direction = isFacingRight ? -1f : 1f;
-            rb.velocity = new Vector2(direction * adjustMoveSpeed, rb.velocity.y);
-
             if (adjustTimer <= 0f)
                 isAdjusting = false;
 
@@ -80,23 +92,20 @@ public class FrogAI : EnemyAIBase
 
     private void RoamHop()
     {
-        // Randomly choose direction if not currently roaming
         if (!isRoaming)
         {
             roamDirection = Random.value < 0.5f ? -1 : 1;
             isRoaming = true;
         }
 
-        // Check if about to hit wall in roam direction
         Vector2 direction = roamDirection == 1 ? Vector2.right : Vector2.left;
         if (Physics2D.Raycast(transform.position, direction, wallCheckDistance, groundLayer))
         {
-            roamDirection *= -1; // reverse
+            roamDirection *= -1;
         }
 
         rb.velocity = new Vector2(roamDirection * roamHopForceX, roamHopForceY);
 
-        // Store for debug
         debugInitialVelocity = rb.velocity;
         debugFlightTime = 0.6f;
         debugHasTrajectory = true;
@@ -143,9 +152,20 @@ public class FrogAI : EnemyAIBase
         return hit.collider != null;
     }
 
+    private void OnCollisionEnter2D(Collision2D collision)
+    {
+        if (damageTimer > 0f) return;
+
+        PlayerHealth playerHealth = collision.gameObject.GetComponent<PlayerHealth>();
+        if (playerHealth != null)
+        {
+            playerHealth.TakeDamage(contactDamage);
+            damageTimer = damageCooldown;
+        }
+    }
+
     private void OnDrawGizmosSelected()
     {
-        // Jump arc
         if (debugHasTrajectory)
         {
             Vector2 pos = transform.position;
@@ -168,11 +188,9 @@ public class FrogAI : EnemyAIBase
             Gizmos.DrawRay(pos, debugInitialVelocity.normalized * 1.5f);
         }
 
-        // Vision range
         Gizmos.color = new Color(1, 1, 0, 0.4f);
         Gizmos.DrawWireSphere(transform.position, visionRange);
 
-        // Wall ray
         Gizmos.color = Color.cyan;
         Vector2 wallDir = isFacingRight ? Vector2.right : Vector2.left;
         Gizmos.DrawRay(transform.position, wallDir * wallCheckDistance);
