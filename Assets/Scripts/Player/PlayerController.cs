@@ -35,9 +35,6 @@ public class PlayerController : MonoBehaviour
     public float force = 5;
     public ForceMode2D forceMode = ForceMode2D.Impulse;
 
-    [Header ("Attack")]
-
-
     private Rigidbody2D rb;
     private float horizontalInput;
     private int facingDirection = 1;

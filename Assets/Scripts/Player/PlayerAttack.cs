@@ -4,10 +4,10 @@ using UnityEngine;
 
 public class PlayerAttack : MonoBehaviour
 {
-    // Start is called before the first frame update
+    private Collider2D AtkCol;
     void Start()
     {
-        
+        AtkCol = GetComponent<Collider2D>();
     }
 
     // Update is called once per frame
