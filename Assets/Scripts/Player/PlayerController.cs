@@ -37,7 +37,7 @@ public class PlayerController : MonoBehaviour
 
     private Rigidbody2D rb;
     private float horizontalInput;
-    private int facingDirection = 1;
+    public int facingDirection { get; private set; } = 1;
 
     private bool jumpPressed;
     private float coyoteTimer;
@@ -86,7 +86,14 @@ public class PlayerController : MonoBehaviour
         horizontalInput = Input.GetAxisRaw("Horizontal");
 
         if (horizontalInput != 0)
+        {
             facingDirection = (int)Mathf.Sign(horizontalInput);
+
+            // Flip the player visually
+            Vector3 scale = transform.localScale;
+            scale.x = Mathf.Abs(scale.x) * facingDirection;
+            transform.localScale = scale;
+        }
 
         if (Input.GetButtonDown("Jump"))
             jumpBufferTimer = jumpBufferTime;

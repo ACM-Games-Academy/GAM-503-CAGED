@@ -132,7 +132,7 @@ public class FrogAI : EnemyAIBase
         debugHasTrajectory = true;
     }
 
-    private bool PlayerInSight()
+    public bool PlayerInSight()
     {
         if (Vector2.Distance(transform.position, player.position) > visionRange)
             return false;
