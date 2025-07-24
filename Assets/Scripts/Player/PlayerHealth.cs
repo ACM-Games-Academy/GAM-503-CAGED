@@ -43,6 +43,15 @@ public class PlayerHealth : MonoBehaviour
         isInvincible = false;
     }
 
+    public void HealFull()
+    {
+        currentHealth = maxHealth;
+        spriteRend.color = Color.white;  // reset color in case healing mid-iFrames
+        isInvincible = false;
+        Physics2D.IgnoreLayerCollision(6, 7, false);
+        Debug.Log("Player healed to full health");
+    }
+
     private IEnumerator InvincibilityFrames()
     {
         isInvincible = true;
