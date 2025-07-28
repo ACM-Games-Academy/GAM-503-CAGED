@@ -91,22 +91,21 @@ public class PlayerController : MonoBehaviour
 
     void HandleInput()
     {
-        horizontalInput = Input.GetAxisRaw("Horizontal");
+        Vector2 movementInput = PlayerInputManager.Instance.GetMovement();
+        horizontalInput = movementInput.x;
 
         if (horizontalInput != 0)
         {
             facingDirection = (int)Mathf.Sign(horizontalInput);
-
-            // Flip the player visually
             Vector3 scale = transform.localScale;
             scale.x = Mathf.Abs(scale.x) * facingDirection;
             transform.localScale = scale;
         }
 
-        if (Input.GetButtonDown("Jump"))
+        if (PlayerInputManager.Instance.GetJump())
             jumpBufferTimer = jumpBufferTime;
 
-        if (Input.GetButtonUp("Jump") && rb.velocity.y > 0)
+        if (!PlayerInputManager.Instance.GetJumpHeld() && rb.velocity.y > 0)
             rb.velocity = new Vector2(rb.velocity.x, rb.velocity.y * 0.5f);
     }
 
@@ -147,7 +146,7 @@ public class PlayerController : MonoBehaviour
 
     void HandleDashInput()
     {
-        if (Input.GetKeyDown(KeyCode.Mouse1) && !isDashing)
+        if (PlayerInputManager.Instance.GetDash() && !isDashing)
         {
             if (isGrounded && canDash)
             {

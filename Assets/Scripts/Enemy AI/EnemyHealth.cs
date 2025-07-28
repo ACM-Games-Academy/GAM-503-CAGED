@@ -7,38 +7,56 @@ public class EnemyHealth : MonoBehaviour
 {
     public int health = 3;
     public float knockbackForce = 1f;
-    public Color hitColor = Color.red;       // Color to change to on hit
-    public float colorChangeDuration = 0.2f; // Duration to keep the hit color
+    public Color hitColor = Color.red;
+    public float colorChangeDuration = 0.2f;
+    public float damageCooldown = 0.5f; // Prevent constant damage per frame
 
     private Rigidbody2D rb;
     private SpriteRenderer spriteRenderer;
     private Color originalColor;
     private Coroutine colorChangeCoroutine;
 
+    private float lastDamageTime;
+
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
         spriteRenderer = GetComponent<SpriteRenderer>();
         originalColor = spriteRenderer.color;
+        lastDamageTime = -damageCooldown; // Allow immediate damage on start
     }
 
-    private void OnTriggerEnter2D(Collider2D collision)
+    private void OnTriggerStay2D(Collider2D collision)
     {
         if (collision.gameObject.CompareTag("PlayerAttack"))
         {
-            Vector2 knockbackDir = (transform.position - collision.transform.position).normalized;
-            rb.velocity = Vector2.zero;
-            rb.AddForce(knockbackDir * knockbackForce, ForceMode2D.Impulse);
-
-            TakeDamage(1);
+            if (Time.time - lastDamageTime >= damageCooldown)
+            {
+                Vector2 knockbackDir = (transform.position - collision.transform.position).normalized;
+                TakeDamage(1, knockbackDir);
+                lastDamageTime = Time.time;
+            }
         }
     }
 
-    public void TakeDamage(int amount)
+    public void TakeDamage(int amount, Vector2 knockbackDirection)
     {
         health -= amount;
 
-        // Change color to indicate hit
+        // Apply knockback
+        rb.velocity = Vector2.zero;
+        var mothAI = GetComponent<MothAI>();
+        if (mothAI != null)
+        {
+            mothAI.ApplyKnockback(knockbackDirection * knockbackForce);
+        }
+        else
+        {
+            rb.velocity = Vector2.zero;
+            rb.AddForce(knockbackDirection * knockbackForce, ForceMode2D.Impulse);
+        }
+
+        // Visual feedback
         if (colorChangeCoroutine != null)
         {
             StopCoroutine(colorChangeCoroutine);

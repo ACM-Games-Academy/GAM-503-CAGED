@@ -27,21 +27,38 @@ public class MothAI : EnemyAIBase
     public float obstacleAvoidDistance = 1f;
     public LayerMask groundMask;
     public float avoidUpForce = 2f;
+    public float avoidanceLerpSpeed = 5f;
 
     [Header("Damage Settings")]
     public int contactDamage = 1;
     public float damageCooldown = 1f;
     private float damageTimer = 0f;
 
+    [Header("Knockback Settings")]
+    public float knockbackDuration = 0.2f;
+    public float knockbackForce = 8f;
+    private bool isKnockedBack = false;
+    private float knockbackTimer = 0f;
+
     protected override void Start()
     {
         base.Start();
-        bobOffset = Random.Range(0f, 2f * Mathf.PI); // random phase offset
+        bobOffset = Random.Range(0f, 2f * Mathf.PI);
     }
 
     protected override void HandleAI()
     {
         damageTimer -= Time.fixedDeltaTime;
+
+        if (isKnockedBack)
+        {
+            knockbackTimer -= Time.fixedDeltaTime;
+            if (knockbackTimer <= 0f)
+                isKnockedBack = false;
+
+            return;
+        }
+
         dashCooldownTimer -= Time.fixedDeltaTime;
 
         if (isDashing)
@@ -50,57 +67,78 @@ public class MothAI : EnemyAIBase
             rb.velocity = dashDirection * dashSpeed;
 
             if (dashTimer <= 0f)
-                isDashing = false;
+                EndDash();
 
             return;
         }
 
-        // Avoid ground
         if (IsTooCloseToGround())
         {
-            rb.velocity = new Vector2(rb.velocity.x, avoidUpForce);
+            rb.velocity = Vector2.Lerp(rb.velocity, new Vector2(rb.velocity.x, avoidUpForce), Time.fixedDeltaTime * avoidanceLerpSpeed);
             return;
         }
 
-        // Avoid wall
         if (IsObstacleAhead(out Vector2 avoidDir))
         {
-            rb.velocity = avoidDir * followSpeed;
+            rb.velocity = Vector2.Lerp(rb.velocity, avoidDir * followSpeed, Time.fixedDeltaTime * avoidanceLerpSpeed);
             return;
         }
 
         float distanceToPlayer = Vector2.Distance(transform.position, player.position);
 
-        // Dash if in range
         if (distanceToPlayer <= dashTriggerDistance && dashCooldownTimer <= 0f)
         {
             StartDash();
             return;
         }
 
-        // Float toward player with bobbing
         if (distanceToPlayer > stoppingDistance)
         {
             Vector2 direction = (player.position - transform.position).normalized;
-
-            // Apply vertical bobbing
             float bob = Mathf.Sin(Time.time * bobFrequency + bobOffset) * bobAmplitude;
             direction.y += bob;
-
             rb.velocity = direction.normalized * followSpeed;
         }
         else
         {
             rb.velocity = Vector2.zero;
         }
+
+        HandleStuckUnstick(); // Detect & escape if stuck on platform sides
     }
 
     private void StartDash()
     {
+        Vector2 dir = (player.position - transform.position).normalized;
+
+        // Optional: cancel dash if wall is immediately ahead
+        RaycastHit2D hit = Physics2D.Raycast(transform.position, dir, 0.5f, groundMask);
+        if (hit.collider != null)
+            return;
+
         isDashing = true;
         dashCooldownTimer = dashCooldown;
         dashTimer = dashDuration;
-        dashDirection = (player.position - transform.position).normalized;
+        dashDirection = dir;
+    }
+
+    private void EndDash()
+    {
+        isDashing = false;
+
+        // Push slightly away from wall if right up against one
+        RaycastHit2D hit = Physics2D.Raycast(transform.position, dashDirection, 0.3f, groundMask);
+        if (hit.collider != null)
+        {
+            rb.position -= dashDirection * 0.2f;
+        }
+    }
+
+    public void ApplyKnockback(Vector2 force)
+    {
+        isKnockedBack = true;
+        knockbackTimer = knockbackDuration;
+        rb.velocity = force;
     }
 
     private bool IsTooCloseToGround()
@@ -116,8 +154,9 @@ public class MothAI : EnemyAIBase
 
         if (hit.collider != null)
         {
-            // Try to steer up and sideways
-            avoidanceDir = Vector2.Perpendicular(direction).normalized + Vector2.up * 0.5f;
+            Vector2 perpendicular = Vector2.Perpendicular(direction);
+            Vector2 upwardBias = Vector2.up * 0.6f;
+            avoidanceDir = (perpendicular + upwardBias).normalized;
             return true;
         }
 
@@ -125,15 +164,44 @@ public class MothAI : EnemyAIBase
         return false;
     }
 
+    private void HandleStuckUnstick()
+    {
+        if (!isDashing && rb.velocity.magnitude < 0.1f)
+        {
+            RaycastHit2D rightWall = Physics2D.Raycast(transform.position, Vector2.right, 0.3f, groundMask);
+            RaycastHit2D leftWall = Physics2D.Raycast(transform.position, Vector2.left, 0.3f, groundMask);
+
+            if (rightWall.collider != null)
+            {
+                rb.velocity = new Vector2(-1f, 1f).normalized * 2f;
+            }
+            else if (leftWall.collider != null)
+            {
+                rb.velocity = new Vector2(1f, 1f).normalized * 2f;
+            }
+        }
+    }
+
     private void OnCollisionEnter2D(Collision2D collision)
     {
         if (damageTimer > 0f) return;
 
         PlayerHealth playerHealth = collision.gameObject.GetComponent<PlayerHealth>();
+        PlayerController playerController = collision.gameObject.GetComponent<PlayerController>();
+
         if (playerHealth != null)
         {
             playerHealth.TakeDamage(contactDamage);
             damageTimer = damageCooldown;
+
+            if (playerController != null)
+            {
+                Vector2 direction = (collision.transform.position - transform.position).normalized;
+                direction.y = Mathf.Abs(direction.y); // favor upward knockback
+                Rigidbody2D playerRb = playerController.GetComponent<Rigidbody2D>();
+                playerRb.velocity = Vector2.zero;
+                playerRb.AddForce(direction * knockbackForce, ForceMode2D.Impulse);
+            }
         }
     }
 

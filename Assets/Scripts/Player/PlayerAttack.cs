@@ -1,7 +1,7 @@
 using System.Collections;
 using UnityEngine;
 
-public class PlayerAttack : MonoBehaviour
+public class PlayerAttack : MonoBehaviour, IPlayerAttack
 {
     [Header("Attack Settings")]
     public float attackDuration = 0.2f;
@@ -22,11 +22,11 @@ public class PlayerAttack : MonoBehaviour
 
     private bool isAttacking = false;
     private bool canAttack = true;
+    private bool attackEnabled = true;
+
     private Vector2 inputDirection;
 
-    private PlayerController playerController;
-
-    void Start()
+    private void Start()
     {
         neutralCollider = neutralAttackZone.GetComponent<Collider2D>();
         upCollider = upAttackZone.GetComponent<Collider2D>();
@@ -36,25 +36,29 @@ public class PlayerAttack : MonoBehaviour
         upVisual = upAttackZone.GetComponent<SpriteRenderer>();
         downVisual = downAttackZone.GetComponent<SpriteRenderer>();
 
-        playerController = GetComponent<PlayerController>();
+        neutralAttackZone.SetActive(false);
+        upAttackZone.SetActive(false);
+        downAttackZone.SetActive(false);
     }
 
-    void Update()
+    private void Update()
     {
+        if (!attackEnabled) return;
         HandleInput();
     }
 
-    void HandleInput()
+    private void HandleInput()
     {
-        inputDirection = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
+        inputDirection = PlayerInputManager.Instance.GetMovement();
 
-        if (Input.GetButtonDown("Fire1") && canAttack)
+        if (PlayerInputManager.Instance.GetAttack() && canAttack)
         {
             StartCoroutine(DoAttack());
         }
     }
 
-    IEnumerator DoAttack()
+
+    private IEnumerator DoAttack()
     {
         isAttacking = true;
         canAttack = false;
@@ -69,12 +73,16 @@ public class PlayerAttack : MonoBehaviour
         selectedZone.SetActive(true);
 
         yield return new WaitForSeconds(attackDuration);
-
         selectedZone.SetActive(false);
 
         isAttacking = false;
 
         yield return new WaitForSeconds(attackCooldown);
         canAttack = true;
+    }
+
+    public void EnableAttack(bool enabled)
+    {
+        attackEnabled = enabled;
     }
 }

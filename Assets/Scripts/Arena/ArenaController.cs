@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -8,20 +9,43 @@ public class ArenaController : MonoBehaviour
     public GameObject player;
     public Text messageText;
 
-    public GameObject[] enemyPrefabs;      // Multiple enemy prefabs
+    public GameObject[] enemyPrefabs;
     public Transform[] spawnPoints;
+
+    [Header("Arena Layout Objects")]
+    public GameObject spikeFloor;
+    public GameObject platformPrefab;
+    public Transform[] platformSpawnPoints;
+
+    private List<GameObject> activePlatforms = new List<GameObject>();
+
+    [System.Serializable]
+    public enum ArenaLayout
+    {
+        Default,
+        SpikesArena,
+        ThinArena,
+        WideArena
+    }
 
     [System.Serializable]
     public class Wave
     {
         public int enemyCount;
-        public float spawnRate;
+        public float spawnRate = 0.5f;
+        public ArenaLayout layout;
+
+        [Tooltip("Optional: If set, only these enemy prefabs will spawn for this wave.")]
+        public GameObject[] customEnemyPrefabs;
+
+        [Tooltip("Optional: Delay before spawning enemies (after layout applies).")]
+        public float preWaveDelay = 0.5f;
     }
 
     public Wave[] waves;
     private int currentWaveIndex = 0;
-
     private bool waveStarted = false;
+    private bool tutorialSkipped = false;
 
     private void Start()
     {
@@ -34,10 +58,13 @@ public class ArenaController : MonoBehaviour
         if (playerController != null)
             playerController.EnableControls(false);
 
-        messageText.text = "WASD or Arrow Keys to Move\nRight Click to Dash\nLeft Click to Attack";
+        messageText.text = "WASD or Arrow Keys to Move\nRight Click to Dash\nLeft Click to Attack\n\nPress [SPACE] to start!";
         messageText.enabled = true;
 
-        yield return new WaitForSeconds(5f);
+        while (!Input.GetKeyDown(KeyCode.Space))
+        {
+            yield return null;
+        }
 
         if (playerController != null)
             playerController.EnableControls(true);
@@ -55,20 +82,27 @@ public class ArenaController : MonoBehaviour
         StartWave();
     }
 
-    void SpawnEnemy()
+    void SpawnEnemy(GameObject[] enemyPool)
     {
-        Transform spawnPoint = spawnPoints[Random.Range(0, spawnPoints.Length)];
-        GameObject enemyPrefab = enemyPrefabs[Random.Range(0, enemyPrefabs.Length)];
+        if (enemyPool == null || enemyPool.Length == 0)
+            enemyPool = enemyPrefabs;
 
+        Transform spawnPoint = spawnPoints[Random.Range(0, spawnPoints.Length)];
+        GameObject enemyPrefab = enemyPool[Random.Range(0, enemyPool.Length)];
         Instantiate(enemyPrefab, spawnPoint.position, Quaternion.identity);
     }
 
     IEnumerator SpawnWave(Wave wave)
     {
+        GameObject[] enemyPool = (wave.customEnemyPrefabs != null && wave.customEnemyPrefabs.Length > 0)
+            ? wave.customEnemyPrefabs
+            : enemyPrefabs;
+
         for (int i = 0; i < wave.enemyCount; i++)
         {
-            SpawnEnemy();
-            yield return new WaitForSeconds(wave.spawnRate);
+            SpawnEnemy(enemyPool);
+            if (wave.spawnRate > 0f)
+                yield return new WaitForSeconds(wave.spawnRate);
         }
     }
 
@@ -85,35 +119,105 @@ public class ArenaController : MonoBehaviour
 
         while (currentWaveIndex < waves.Length)
         {
-            // Heal player fully at the start of each wave
             if (playerHealth != null)
                 playerHealth.HealFull();
 
-            messageText.text = $"Wave {currentWaveIndex + 1} Starting!";
-            messageText.enabled = true;
+            Wave wave = waves[currentWaveIndex];
 
-            yield return new WaitForSeconds(2f);
+            ApplyArenaLayout(wave.layout);
+
+            float countdown = 5f;
+            if (currentWaveIndex > 0)
+            {
+                ArenaLayout nextLayout = wave.layout;
+
+                while (countdown > 0)
+                {
+                    messageText.text = nextLayout == ArenaLayout.SpikesArena
+                        ? $"Next wave in {Mathf.CeilToInt(countdown)}...\nGet to the Platforms!"
+                        : $"Next wave in {Mathf.CeilToInt(countdown)}...";
+                    messageText.enabled = true;
+                    countdown -= Time.deltaTime;
+                    yield return null;
+                }
+            }
 
             messageText.enabled = false;
 
-            yield return StartCoroutine(SpawnWave(waves[currentWaveIndex]));
+            ActivateArenaHazards(wave.layout);
 
-            // Wait for all enemies to be defeated before next wave
-            yield return new WaitUntil(() => GameObject.FindGameObjectsWithTag("Enemy").Length == 0);
+            if (wave.preWaveDelay > 0f)
+                yield return new WaitForSeconds(wave.preWaveDelay);
+
+            yield return StartCoroutine(SpawnWave(wave));
+
+            yield return new WaitUntil(() =>
+                GameObject.FindGameObjectsWithTag("Enemy").Length == 0 ||
+                (playerHealth != null && playerHealth.IsDead())
+            );
+
+            if (playerHealth != null && playerHealth.IsDead())
+            {
+                messageText.text = "You were defeated!";
+                messageText.enabled = true;
+                ResetArena();
+                yield break;
+            }
 
             currentWaveIndex++;
+            ResetArena();
 
-            if (currentWaveIndex < waves.Length)
+            if (currentWaveIndex < waves.Length && currentWaveIndex > 0)
             {
-                messageText.text = $"Next wave in 10 seconds...";
-                messageText.enabled = true;
-                yield return new WaitForSeconds(10f);
+                float restCountdown = 5f;
+                while (restCountdown > 0)
+                {
+                    messageText.text = $"Rest countdown {Mathf.CeilToInt(restCountdown)}...";
+                    messageText.enabled = true;
+                    restCountdown -= Time.deltaTime;
+                    yield return null;
+                }
                 messageText.enabled = false;
             }
         }
 
         messageText.text = "All waves complete! You win!";
         messageText.enabled = true;
+        ResetArena();
+    }
+
+    void ApplyArenaLayout(ArenaLayout layout)
+    {
+        spikeFloor.SetActive(false);
+
+        foreach (var p in activePlatforms)
+            Destroy(p);
+        activePlatforms.Clear();
+
+        switch (layout)
+        {
+            case ArenaLayout.SpikesArena:
+                foreach (Transform t in platformSpawnPoints)
+                {
+                    GameObject platform = Instantiate(platformPrefab, t.position, Quaternion.identity);
+                    activePlatforms.Add(platform);
+                }
+                break;
+        }
+    }
+
+    void ActivateArenaHazards(ArenaLayout layout)
+    {
+        if (layout == ArenaLayout.SpikesArena)
+            spikeFloor.SetActive(true);
+    }
+
+    void ResetArena()
+    {
+        spikeFloor.SetActive(false);
+        foreach (var p in activePlatforms)
+            Destroy(p);
+        activePlatforms.Clear();
     }
 
     public bool IsPointInsideArena(Vector2 point)
