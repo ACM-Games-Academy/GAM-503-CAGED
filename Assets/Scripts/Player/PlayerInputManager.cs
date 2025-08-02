@@ -1,10 +1,19 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 public class PlayerInputManager : MonoBehaviour
 {
     public static PlayerInputManager Instance;
 
     public PlayerKeybinds keybinds = new PlayerKeybinds();
+    private PlayerControls controls;
+
+    private Vector2 movementInput;
+    private bool jumpPressed;
+    private bool jumpHeld;
+    private bool dashPressed;
+    private bool attackPressed;
+    private bool pausePressed;
 
     private void Awake()
     {
@@ -12,6 +21,8 @@ public class PlayerInputManager : MonoBehaviour
         {
             Instance = this;
             DontDestroyOnLoad(gameObject);
+            controls = new PlayerControls();
+            SetupInputActions();
             LoadKeybinds();
         }
         else
@@ -20,17 +31,56 @@ public class PlayerInputManager : MonoBehaviour
         }
     }
 
-    public bool GetJump() => Input.GetKeyDown(keybinds.jumpKey);
-    public bool GetJumpHeld() => Input.GetKey(keybinds.jumpKey);
-    public bool GetDash() => Input.GetKeyDown(keybinds.dashKey);
-    public bool GetAttack() => Input.GetKeyDown(keybinds.attackKey);
+    private void OnEnable() => controls?.Enable();
+    private void OnDisable() => controls?.Disable();
 
-    public Vector2 GetMovement()
+    private void SetupInputActions()
     {
-        float x = (Input.GetKey(keybinds.leftKey) ? -1f : 0f) + (Input.GetKey(keybinds.rightKey) ? 1f : 0f);
-        float y = (Input.GetKey(keybinds.downKey) ? -1f : 0f) + (Input.GetKey(keybinds.upKey) ? 1f : 0f);
-        return new Vector2(x, y);
+        controls.Gameplay.Move.performed += ctx => movementInput = ctx.ReadValue<Vector2>();
+        controls.Gameplay.Move.canceled += _ => movementInput = Vector2.zero;
+
+        controls.Gameplay.Jump.started += _ => { jumpPressed = true; jumpHeld = true; };
+        controls.Gameplay.Jump.canceled += _ => jumpHeld = false;
+
+        controls.Gameplay.Dash.performed += _ => dashPressed = true;
+        controls.Gameplay.Attack.performed += _ => attackPressed = true;
+
+        controls.Gameplay.Pause.performed += _ => pausePressed = true;
+
+        controls.Gameplay.Enable();
     }
+
+    public bool GetJump()
+    {
+        bool result = jumpPressed;
+        jumpPressed = false;
+        return result;
+    }
+
+    public bool GetPause()
+    {
+        bool result = pausePressed;
+        pausePressed = false;
+        return result;
+    }
+
+    public bool GetJumpHeld() => jumpHeld;
+
+    public bool GetDash()
+    {
+        bool result = dashPressed;
+        dashPressed = false;
+        return result;
+    }
+
+    public bool GetAttack()
+    {
+        bool result = attackPressed;
+        attackPressed = false;
+        return result;
+    }
+
+    public Vector2 GetMovement() => movementInput;
 
     public void SaveKeybinds()
     {

@@ -11,9 +11,6 @@ public abstract class EnemyAIBase : MonoBehaviour
     public LayerMask groundLayer;
     public LayerMask playerLayer;
 
-    [Header("Movement")]
-    public float moveSpeed = 2f;
-
     protected bool isFacingRight = true;
 
     protected virtual void Start()

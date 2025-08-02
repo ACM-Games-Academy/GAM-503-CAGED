@@ -28,6 +28,7 @@ public class MothAI : EnemyAIBase
     public LayerMask groundMask;
     public float avoidUpForce = 2f;
     public float avoidanceLerpSpeed = 5f;
+    public float hardAvoidanceRadius = 2f;
 
     [Header("Damage Settings")]
     public int contactDamage = 1;
@@ -85,6 +86,29 @@ public class MothAI : EnemyAIBase
         }
 
         float distanceToPlayer = Vector2.Distance(transform.position, player.position);
+        bool playerBlocked = Physics2D.Raycast(transform.position, (player.position - transform.position).normalized, distanceToPlayer, groundMask);
+
+        // Hard avoidance zone
+        if (distanceToPlayer <= hardAvoidanceRadius && playerBlocked)
+        {
+            Vector2 toPlayer = (player.position - transform.position).normalized;
+            Vector2 left = Vector2.Perpendicular(toPlayer);
+            Vector2 right = -left;
+
+            bool leftClear = !Physics2D.Raycast(transform.position, left, 0.5f, groundMask);
+            bool rightClear = !Physics2D.Raycast(transform.position, right, 0.5f, groundMask);
+
+            Vector2 sidestepDir = Vector2.zero;
+            if (leftClear) sidestepDir = left;
+            else if (rightClear) sidestepDir = right;
+
+            if (sidestepDir != Vector2.zero)
+                rb.velocity = sidestepDir.normalized * followSpeed;
+            else
+                rb.velocity = new Vector2(0f, followSpeed); // float up if totally blocked
+
+            return;
+        }
 
         if (distanceToPlayer <= dashTriggerDistance && dashCooldownTimer <= 0f)
         {
@@ -104,17 +128,22 @@ public class MothAI : EnemyAIBase
             rb.velocity = Vector2.zero;
         }
 
-        HandleStuckUnstick(); // Detect & escape if stuck on platform sides
+        HandleStuckUnstick(); // Improved stuck handler
     }
 
     private void StartDash()
     {
         Vector2 dir = (player.position - transform.position).normalized;
+        float distance = Vector2.Distance(transform.position, player.position);
 
-        // Optional: cancel dash if wall is immediately ahead
-        RaycastHit2D hit = Physics2D.Raycast(transform.position, dir, 0.5f, groundMask);
+        // Cast a ray from moth to player to ensure clear dash path
+        RaycastHit2D hit = Physics2D.Raycast(transform.position, dir, distance, groundMask);
+
         if (hit.collider != null)
+        {
+            // Blocked path, don't dash
             return;
+        }
 
         isDashing = true;
         dashCooldownTimer = dashCooldown;
@@ -126,7 +155,6 @@ public class MothAI : EnemyAIBase
     {
         isDashing = false;
 
-        // Push slightly away from wall if right up against one
         RaycastHit2D hit = Physics2D.Raycast(transform.position, dashDirection, 0.3f, groundMask);
         if (hit.collider != null)
         {
@@ -170,14 +198,23 @@ public class MothAI : EnemyAIBase
         {
             RaycastHit2D rightWall = Physics2D.Raycast(transform.position, Vector2.right, 0.3f, groundMask);
             RaycastHit2D leftWall = Physics2D.Raycast(transform.position, Vector2.left, 0.3f, groundMask);
+            RaycastHit2D above = Physics2D.Raycast(transform.position, Vector2.up, 0.3f, groundMask);
 
-            if (rightWall.collider != null)
+            if (rightWall.collider != null && !leftWall.collider)
             {
                 rb.velocity = new Vector2(-1f, 1f).normalized * 2f;
             }
-            else if (leftWall.collider != null)
+            else if (leftWall.collider != null && !rightWall.collider)
             {
                 rb.velocity = new Vector2(1f, 1f).normalized * 2f;
+            }
+            else if (above.collider == null)
+            {
+                rb.velocity = Vector2.up * 2f;
+            }
+            else
+            {
+                rb.velocity = new Vector2(Random.Range(-1f, 1f), 1f).normalized * 1.5f;
             }
         }
     }
@@ -197,7 +234,7 @@ public class MothAI : EnemyAIBase
             if (playerController != null)
             {
                 Vector2 direction = (collision.transform.position - transform.position).normalized;
-                direction.y = Mathf.Abs(direction.y); // favor upward knockback
+                direction.y = Mathf.Abs(direction.y);
                 Rigidbody2D playerRb = playerController.GetComponent<Rigidbody2D>();
                 playerRb.velocity = Vector2.zero;
                 playerRb.AddForce(direction * knockbackForce, ForceMode2D.Impulse);
@@ -219,5 +256,8 @@ public class MothAI : EnemyAIBase
             Vector2 direction = (player.position - transform.position).normalized;
             Gizmos.DrawLine(transform.position, transform.position + (Vector3)direction * obstacleAvoidDistance);
         }
+
+        Gizmos.color = Color.yellow;
+        Gizmos.DrawWireSphere(transform.position, hardAvoidanceRadius); // draw hard avoidance zone
     }
 }

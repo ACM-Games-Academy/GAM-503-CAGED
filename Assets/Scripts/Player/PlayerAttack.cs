@@ -1,7 +1,7 @@
 using System.Collections;
 using UnityEngine;
 
-public class PlayerAttack : MonoBehaviour, IPlayerAttack
+public class PlayerAttack : MonoBehaviour
 {
     [Header("Attack Settings")]
     public float attackDuration = 0.2f;
@@ -26,6 +26,12 @@ public class PlayerAttack : MonoBehaviour, IPlayerAttack
 
     private Vector2 inputDirection;
 
+    private bool controlsEnabled = true;
+    public void EnableControls(bool enabled)
+    {
+        controlsEnabled = enabled;
+    }
+
     private void Start()
     {
         neutralCollider = neutralAttackZone.GetComponent<Collider2D>();
@@ -43,7 +49,7 @@ public class PlayerAttack : MonoBehaviour, IPlayerAttack
 
     private void Update()
     {
-        if (!attackEnabled) return;
+        if (!attackEnabled || !controlsEnabled || Time.timeScale == 0f) return;
         HandleInput();
     }
 

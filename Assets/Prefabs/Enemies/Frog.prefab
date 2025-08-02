@@ -204,24 +204,23 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d1330eeb0a733f54d83a56c57ac90547, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  player: {fileID: 3272376843909943047, guid: 0903c16a6d2b46841b2ca7f2b5f8b6cd, type: 3}
-  detectionRange: 10
+  player: {fileID: 0}
+  detectionRange: 100
   groundLayer:
     serializedVersion: 2
     m_Bits: 8
   playerLayer:
     serializedVersion: 2
     m_Bits: 64
-  moveSpeed: 2
   leapCooldown: 1.5
   groundCheck: {fileID: 2828394451105171311}
   groundCheckRadius: 0.2
-  maxJumpTime: 1
+  maxJumpTime: 0.8
   minJumpTime: 0.3
   maxLeapDistance: 20
   wallCheckDistance: 1
   wallAdjustmentTime: 3
-  visionRange: 15
+  visionRange: 100
   visionBlockMask:
     serializedVersion: 2
     m_Bits: 0
@@ -243,7 +242,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   health: 3
-  knockbackForce: 2
+  knockbackForce: 0
   hitColor: {r: 1, g: 0, b: 0, a: 1}
   colorChangeDuration: 0.2
-  damageCooldown: 0.3
+  damageCooldown: 0.29

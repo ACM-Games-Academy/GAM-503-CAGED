@@ -79,7 +79,7 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_Sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_Color: {r: 1, g: 0.8537887, b: 0.4764151, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
@@ -154,7 +154,7 @@ MonoBehaviour:
     m_Bits: 8
   contactDamage: 1
   damageCooldown: 1
-  visionRange: 5
+  visionRange: 100
   visionBlockMask:
     serializedVersion: 2
     m_Bits: 0
@@ -184,7 +184,7 @@ Rigidbody2D:
   m_Interpolate: 1
   m_SleepingMode: 1
   m_CollisionDetection: 1
-  m_Constraints: 0
+  m_Constraints: 4
 --- !u!114 &6337569626563652670
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -198,10 +198,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   health: 3
-  knockbackForce: 1
+  knockbackForce: 10
   hitColor: {r: 1, g: 0, b: 0, a: 1}
   colorChangeDuration: 0.2
-  damageCooldown: 0.3
+  damageCooldown: 0.29
 --- !u!1 &5752312413760498950
 GameObject:
   m_ObjectHideFlags: 0

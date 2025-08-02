@@ -120,21 +120,25 @@ public class FrogAI : EnemyAIBase
         float dy = targetPos.y - startPos.y;
         float gravity = Mathf.Abs(Physics2D.gravity.y * rb.gravityScale);
 
-        // Set a higher arc time for consistent jumps
-        float t = Mathf.Clamp(Mathf.Abs(dx) / 5f, minJumpTime, maxJumpTime);
-
-        float arcHeightBoost = 2.5f; // Adjust for stronger vertical arcs
-
-        float vx = dx / t;
-        float vy = (dy + arcHeightBoost + 0.5f * gravity * t * t) / t;
-
-        // Clamp max horizontal leap distance
+        // Clamp max horizontal leap distance first
         if (Mathf.Abs(dx) > maxLeapDistance)
         {
             dx = Mathf.Sign(dx) * maxLeapDistance;
-            vx = dx / t;
         }
 
+        // Calculate jump time (duration in air)
+        float t = Mathf.Clamp(Mathf.Abs(dx) / 5f, minJumpTime, maxJumpTime);
+
+        // Adjust arc height boost for vertical velocity (to ensure a nice arc)
+        float arcHeightBoost = 0.5f;
+
+        // Now calculate velocities
+        float vx = dx / t;
+
+        // vy calculation: dy + arcHeightBoost + gravity effect, divided by time
+        float vy = (dy + arcHeightBoost + 0.5f * gravity * t * t) / t;
+
+        // Set the velocity on the rigidbody
         rb.velocity = new Vector2(vx, vy);
 
         // Debug visuals

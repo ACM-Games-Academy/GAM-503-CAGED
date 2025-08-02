@@ -56,7 +56,10 @@ public class PlayerController : MonoBehaviour
     private float dashCooldownTimer;
 
     private bool controlsEnabled = true;
-
+    public void EnableControls(bool enabled)
+    {
+        controlsEnabled = enabled;
+    }
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
@@ -65,7 +68,7 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
-        if (!controlsEnabled) return;
+        if (!controlsEnabled || Time.timeScale == 0f) return;
         HandleInput();
         CheckCollisions();
         HandleJumpBufferAndCoyoteTime();
@@ -82,11 +85,6 @@ public class PlayerController : MonoBehaviour
         HandleWallSlideMovement();
         HandleJump();
         ApplyGravity();
-    }
-
-    public void EnableControls(bool enabled)
-    {
-        controlsEnabled = enabled;
     }
 
     void HandleInput()
