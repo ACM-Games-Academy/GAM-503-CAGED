@@ -9,7 +9,7 @@ public class EnemyHealth : MonoBehaviour
     public float knockbackForce = 1f;
     public Color hitColor = Color.red;
     public float colorChangeDuration = 0.2f;
-    public float damageCooldown = 0.5f; // Prevent constant damage per frame
+    public float damageCooldown = 0.5f;
 
     private Rigidbody2D rb;
     private SpriteRenderer spriteRenderer;
@@ -23,7 +23,7 @@ public class EnemyHealth : MonoBehaviour
         rb = GetComponent<Rigidbody2D>();
         spriteRenderer = GetComponent<SpriteRenderer>();
         originalColor = spriteRenderer.color;
-        lastDamageTime = -damageCooldown; // Allow immediate damage on start
+        lastDamageTime = -damageCooldown;
     }
 
     private void OnTriggerStay2D(Collider2D collision)
@@ -43,7 +43,6 @@ public class EnemyHealth : MonoBehaviour
     {
         health -= amount;
 
-        // Apply knockback
         rb.velocity = Vector2.zero;
         var mothAI = GetComponent<MothAI>();
         if (mothAI != null)
@@ -56,7 +55,6 @@ public class EnemyHealth : MonoBehaviour
             rb.AddForce(knockbackDirection * knockbackForce, ForceMode2D.Impulse);
         }
 
-        // Visual feedback
         if (colorChangeCoroutine != null)
         {
             StopCoroutine(colorChangeCoroutine);
