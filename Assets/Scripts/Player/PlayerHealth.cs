@@ -22,7 +22,7 @@ public class PlayerHealth : MonoBehaviour
     private Collider2D col;
 
     [Header("Health UI")]
-    public GameObject healthBarParent; // Assign the HealthBar GameObject in inspector
+    public GameObject healthBarParent;
 
     private Image[] healthImages;
 
@@ -42,7 +42,7 @@ public class PlayerHealth : MonoBehaviour
 
         UpdateHealthUI();
 
-        // Make sure fade starts transparent
+        // fade starts transparent
         if (fadeCanvas)
         {
             fadeCanvas.alpha = 0f;
@@ -81,7 +81,7 @@ public class PlayerHealth : MonoBehaviour
     {
         /* Disable images starting from right to left based on currentHealth
            The images are ordered left to right in hierarchy (0 is leftmost, 4 is rightmost)
-           We want to disable starting from index 4 backward as health drops */
+           disable starting from index 4 backward as health drops */
 
         int healthToShow = currentHealth;
 
@@ -129,7 +129,6 @@ public class PlayerHealth : MonoBehaviour
         transform.position = respawnPoint.position;
         GetComponent<Rigidbody2D>().velocity = Vector2.zero;
 
-        // Small delay to make the respawn feel like a "pause"
         yield return new WaitForSeconds(0.2f);
 
         // Fade back in
