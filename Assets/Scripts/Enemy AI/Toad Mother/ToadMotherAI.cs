@@ -28,7 +28,6 @@ public class ToadMotherAI : EnemyAIBase
     {
         if (isTrackingMidAir)
         {
-            // Move horizontally toward player's x position mid-air
             float targetX = player.position.x;
             float currentX = transform.position.x;
             float followSpeed = 5f;

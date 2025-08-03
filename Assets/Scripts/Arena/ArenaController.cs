@@ -70,7 +70,7 @@ public class ArenaController : MonoBehaviour
         var lastDevice = InputDeviceTracker.CurrentDeviceType;
 
         // Add delay to prevent input carryover from main menu
-        yield return new WaitForSecondsRealtime(0.2f);  // Adjust if needed
+        yield return new WaitForSecondsRealtime(0.2f);
 
         // Wait for all start buttons to be released
         yield return new WaitUntil(() =>
