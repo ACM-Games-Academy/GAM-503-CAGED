@@ -40,7 +40,6 @@ public class KeybindUI : MonoBehaviour
         RefreshUI();
     }
 
-    // Hook these 3 methods from the Buttons' OnClick (target the Controls Panel in the HIERARCHY)
     public void StartRebindJump() { StartCoroutine(WaitForKey(Action.Jump)); }
     public void StartRebindDash() { StartCoroutine(WaitForKey(Action.Dash)); }
     public void StartRebindAttack() { StartCoroutine(WaitForKey(Action.Attack)); }
