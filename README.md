@@ -14,7 +14,7 @@ https://fisherinteractive.itch.io/caged
 
 ## Gameplay
 
-- Directional attacks — strike up, down, or forward depending on enemy position and timing
+- Directional attacks: strike up, down, or forward depending on enemy position and timing
 - Movement system with jumping, fast falling, and directional air control
 - Wave-based enemy spawning with increasing difficulty and enemy variety
 - Arena layout changes between waves, introducing new hazards and platforms
